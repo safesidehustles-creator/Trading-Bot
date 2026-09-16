@@ -293,12 +293,12 @@ contract JayTradingBotFlashArbitrage is IFlashLoanSimpleReceiver {
             amountOut = IUniswapV3SwapRouter(leg.router)
                 .exactInput(
                     IUniswapV3SwapRouter.ExactInputParams({
-                    path: leg.route,
-                    recipient: address(this),
-                    deadline: deadline,
-                    amountIn: amountIn,
-                    amountOutMinimum: leg.amountOutMinimum
-                })
+                        path: leg.route,
+                        recipient: address(this),
+                        deadline: deadline,
+                        amountIn: amountIn,
+                        amountOutMinimum: leg.amountOutMinimum
+                    })
                 );
         }
 

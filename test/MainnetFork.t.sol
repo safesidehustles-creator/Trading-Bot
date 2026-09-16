@@ -4,20 +4,17 @@ pragma solidity ^0.8.24;
 import {JayTradingBotFlashArbitrage} from "../src/JayTradingBotFlashArbitrage.sol";
 
 interface Vm {
-    function createSelectFork(string calldata urlOrAlias, uint256 blockNumber)
-        external
-        returns (uint256 forkId);
+    function createSelectFork(string calldata urlOrAlias) external returns (uint256 forkId);
     function envOr(string calldata name, string calldata defaultValue)
         external
         returns (string memory value);
     function expectRevert(bytes4 revertData) external;
 }
 
-/// @dev Fixed-block integration test using actual Ethereum Aave V3 and Uniswap V3 contracts.
+/// @dev Live-state integration test using actual Ethereum Aave V3 and Uniswap V3 contracts.
 contract MainnetForkTest {
     Vm private constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
-    uint256 private constant FORK_BLOCK = 20_000_000;
     address private constant AAVE_V3_PROVIDER = 0x2f39d218133AFaB8F2B819B1066c7E434Ad94E9e;
     address private constant UNISWAP_V3_ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     address private constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -30,7 +27,7 @@ contract MainnetForkTest {
         string memory rpcUrl = vm.envOr("ETHEREUM_RPC_URL", string(""));
         if (bytes(rpcUrl).length == 0) return;
 
-        vm.createSelectFork(rpcUrl, FORK_BLOCK);
+        vm.createSelectFork(rpcUrl);
         forkEnabled = true;
         bot = new JayTradingBotFlashArbitrage(AAVE_V3_PROVIDER, address(this));
         bot.setTokenAllowed(WETH, true);

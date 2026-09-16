@@ -22,7 +22,7 @@ jobs:
           version: stable
       - name: Check formatting
         run: forge fmt --check
-      - name: Run unit and fixed-block mainnet-fork tests
+      - name: Run unit and live-state mainnet-fork tests
         run: forge test -vvv
       - name: Inspect deployed bytecode size
         run: forge build --sizes

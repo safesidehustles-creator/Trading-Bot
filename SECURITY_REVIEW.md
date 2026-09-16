@@ -2,7 +2,7 @@
 
 Date: 2026-09-16  
 Scope: `src/JayTradingBotFlashArbitrage.sol`  
-Review type: internal code review, compilation, unit tests, static linting, and fixed-block fork test
+Review type: internal code review, compilation, unit tests, static analysis, and mainnet-fork test
 
 ## Important limitation
 
@@ -40,7 +40,7 @@ This is not an independent professional audit, formal verification, or guarantee
 
 ### No critical or high-severity issue found in reviewed scope
 
-The unit tests cover successful repayment/profit accounting and atomic rollback. The fork test uses actual Aave V3 and Uniswap V3 contracts at Ethereum block 20,000,000 and expects the bot's exact `InsufficientProfit` error after a fee-losing WETH/USDC/WETH round trip.
+The unit tests cover successful repayment/profit accounting and atomic rollback. The live-state fork test uses actual Ethereum Aave V3 and Uniswap V3 contracts and expects the bot's exact `InsufficientProfit` error after a fee-losing WETH/USDC/WETH round trip. Production release testing should additionally pin a block using a reliable archive RPC.
 
 ### SR-01 — Centralized owner authority (Informational)
 
@@ -74,7 +74,7 @@ Recommendation: allowlist only well-understood liquid assets and add token-speci
 
 ## Required production gates
 
-1. All unit and fixed-block fork tests pass on the exact deployment commit.
+1. All unit and mainnet-fork tests pass on the exact deployment commit.
 2. Add fork tests for every token, router, pool fee, and chain intended for use.
 3. Add fuzz/invariant tests for route continuity, accounting, and permissions.
 4. Move ownership to a multisig using the two-step ownership transfer.

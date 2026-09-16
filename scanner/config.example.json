@@ -1,0 +1,34 @@
+{
+  "aave_provider": "0x2f39d218133AFaB8F2B819B1066c7E434Ad94E9e",
+  "policy": {
+    "gas_units": 500000,
+    "minimum_profit": 1000000000000000,
+    "safety_margin_bps": 20,
+    "slippage_bps": 30
+  },
+  "cycles": [
+    {
+      "name": "WETH-USDC-WETH Uniswap V3 fee comparison",
+      "asset": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "amount_in": 1000000000000000000,
+      "legs": [
+        {
+          "kind": "v3",
+          "quoter": "0x61fFE014bA17989E743c5F6cB21bF9697530B21e",
+          "router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+          "token_in": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+          "token_out": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+          "fee": 500
+        },
+        {
+          "kind": "v3",
+          "quoter": "0x61fFE014bA17989E743c5F6cB21bF9697530B21e",
+          "router": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+          "token_in": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+          "token_out": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+          "fee": 500
+        }
+      ]
+    }
+  ]
+}

@@ -4,6 +4,10 @@ JayTradingBot is a safety-first Solidity foundation for atomic flash-loan arbitr
 
 It **does not** create a token, exploit a protocol, discover profitable trades on-chain, promise returns, or require a 0.1/0.5/1 ETH deposit. A legitimate flash loan borrows and repays within one transaction. The caller still needs native ETH only to pay transaction gas.
 
+## Project status
+
+The contract is intentionally **undeployed**. Development uses unit tests, Ethereum forks, and read-only RPC calls only. The phase-one scanner in [`scanner/`](scanner/) evaluates opportunities without a private key and cannot sign or broadcast transactions.
+
 ## Execution flow
 
 1. An off-chain searcher quotes a closed route that starts and ends with the Aave loan asset.

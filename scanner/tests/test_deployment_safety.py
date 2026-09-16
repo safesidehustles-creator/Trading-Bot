@@ -1,0 +1,64 @@
+from pathlib import Path
+
+from fastapi.testclient import TestClient
+
+from jaytradingbot_scanner.api import app
+from jaytradingbot_scanner.chain import ReadOnlyChain
+
+client = TestClient(app)
+
+
+def test_health_proves_execution_is_disabled() -> None:
+    response = client.get("/api/health")
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "mode": "read-only",
+        "contract_deployed": False,
+        "execution_enabled": False,
+        "signing_enabled": False,
+        "broadcast_enabled": False,
+        "persistent_history_enabled": False,
+    }
+
+
+def test_mutating_http_methods_are_rejected() -> None:
+    for method in ("post", "put", "patch", "delete"):
+        response = getattr(client, method)("/api/health")
+        assert response.status_code == 405
+        assert response.headers["allow"] == "GET, HEAD"
+
+
+def test_web_adapter_has_no_signing_or_broadcast_imports() -> None:
+    api_source = (
+        Path(__file__).parents[1]
+        / "jaytradingbot_scanner"
+        / "api.py"
+    ).read_text(encoding="utf-8")
+    forbidden = (
+        "private_key",
+        "send_transaction",
+        "send_raw_transaction",
+        "sign_transaction",
+        "build_unsigned_call",
+        "calldata",
+    )
+    for capability in forbidden:
+        assert capability not in api_source.lower()
+
+
+def test_chain_reader_exposes_no_transaction_methods() -> None:
+    public_names = {name.lower() for name in dir(ReadOnlyChain)}
+    assert "send_transaction" not in public_names
+    assert "send_raw_transaction" not in public_names
+    assert "sign_transaction" not in public_names
+
+
+def test_scan_requires_only_read_only_rpc_configuration(monkeypatch) -> None:
+    monkeypatch.delenv("ETHEREUM_RPC_URL", raising=False)
+    response = client.get("/api/scan")
+    assert response.status_code == 503
+    assert response.json() == {
+        "error": "ETHEREUM_RPC_URL is not configured",
+        "mode": "read-only",
+    }

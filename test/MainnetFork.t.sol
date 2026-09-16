@@ -12,7 +12,7 @@ interface Vm {
         external
         returns (string memory value);
     function envOr(string calldata name, uint256 defaultValue) external returns (uint256 value);
-    function expectRevert(bytes4 revertData) external;
+    function expectPartialRevert(bytes4 revertData) external;
 }
 
 /// @dev Live-state integration test using actual Ethereum Aave V3 and Uniswap V3 contracts.
@@ -69,7 +69,7 @@ contract MainnetForkTest {
             route: abi.encodePacked(USDC, uint24(500), WETH)
         });
 
-        vm.expectRevert(JayTradingBotFlashArbitrage.InsufficientProfit.selector);
+        vm.expectPartialRevert(JayTradingBotFlashArbitrage.InsufficientProfit.selector);
         bot.startFlashArbitrage(WETH, 1 ether, legs, 0, block.timestamp + 60, address(this));
     }
 }

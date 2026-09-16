@@ -47,3 +47,5 @@ class QuoteResult:
     net_profit: int
     executable: bool
     rejection_reason: str | None
+    leg_quotes: tuple[int, ...]
+    leg_minimums: tuple[int, ...]

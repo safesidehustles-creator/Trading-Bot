@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -45,6 +46,14 @@ def test_web_adapter_imports_no_execution_capability() -> None:
     )
     for capability in forbidden:
         assert capability not in api_source
+
+
+def test_vercel_function_uses_supported_api_directory() -> None:
+    scanner_dir = Path(__file__).parents[1]
+    config = json.loads((scanner_dir / "vercel.json").read_text(encoding="utf-8"))
+    assert set(config["functions"]) == {"api/index.py"}
+    entrypoint = (scanner_dir / "api" / "index.py").read_text(encoding="utf-8")
+    assert "from jaytradingbot_scanner.api import app" in entrypoint
 
 
 def test_chain_reader_exposes_no_transaction_methods() -> None:

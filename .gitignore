@@ -6,3 +6,6 @@ broadcast/
 __pycache__/
 .pytest_cache/
 *.egg-info/
+scanner/data/
+*.db-wal
+*.db-shm

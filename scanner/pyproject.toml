@@ -16,6 +16,7 @@ dev = ["pytest>=8.0,<9"]
 
 [project.scripts]
 jay-scan = "jaytradingbot_scanner.cli:main"
+jay-monitor = "jaytradingbot_scanner.monitor_cli:main"
 
 [tool.setuptools.packages.find]
 include = ["jaytradingbot_scanner*"]

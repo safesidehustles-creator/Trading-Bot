@@ -10,7 +10,34 @@ permissions:
   contents: read
 
 jobs:
-  foundry:
+  static:
+    name: Static checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - name: Check formatting
+        run: forge fmt --check
+      - name: Inspect deployed bytecode size
+        run: forge build --sizes
+
+  unit:
+    name: Local unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - name: Run RPC-independent tests
+        run: forge test -vvv --match-path test/JayTradingBotFlashArbitrage.t.sol
+
+  fork:
+    name: Mainnet fork integration
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -20,18 +47,30 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
         with:
           version: stable
-      - name: Check formatting
-        run: forge fmt --check
-      - name: Pin stable recent Ethereum block
+      - name: Verify RPC and pin stable Ethereum block
+        shell: bash
         run: |
-          latest=$(cast block-number --rpc-url "$ETHEREUM_RPC_URL")
-          echo "FORK_BLOCK_NUMBER=$((latest - 64))" >> "$GITHUB_ENV"
-      - name: Run unit and recent-block mainnet-fork tests
-        run: forge test -vvv
-      - name: Inspect deployed bytecode size
-        run: forge build --sizes
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if latest=$(cast block-number --rpc-url "$ETHEREUM_RPC_URL"); then
+              fork_block=$((latest - 64))
+              if cast chain-id --rpc-url "$ETHEREUM_RPC_URL" | grep -qx "1" &&
+                 cast code 0x2f39d218133AFaB8F2B819B1066c7E434Ad94E9e                    --block "$fork_block"                    --rpc-url "$ETHEREUM_RPC_URL" | grep -qv "^0x$"; then
+                echo "FORK_BLOCK_NUMBER=$fork_block" >> "$GITHUB_ENV"
+                echo "RPC preflight passed at Ethereum block $fork_block."
+                exit 0
+              fi
+            fi
+            echo "::warning::Ethereum RPC preflight attempt $attempt of 3 failed."
+            sleep 5
+          done
+          echo "::error title=RPC infrastructure unavailable::The public Ethereum RPC did not provide chain ID 1 and contract state at a stable recent block after 3 attempts. Local code checks run in separate jobs."
+          exit 1
+      - name: Run recent-block mainnet-fork test
+        run: forge test -vvv --match-path test/MainnetFork.t.sol
 
   scanner:
+    name: Read-only scanner tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

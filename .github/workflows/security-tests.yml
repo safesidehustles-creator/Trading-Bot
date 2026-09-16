@@ -1,0 +1,32 @@
+name: Security and fork tests
+
+on:
+  pull_request:
+  push:
+    branches: [main, "codex/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  foundry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ETHEREUM_RPC_URL: https://ethereum-rpc.publicnode.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      - name: Check formatting
+        run: forge fmt --check
+      - name: Pin stable recent Ethereum block
+        run: |
+          latest=$(cast block-number --rpc-url "$ETHEREUM_RPC_URL")
+          echo "FORK_BLOCK_NUMBER=$((latest - 64))" >> "$GITHUB_ENV"
+      - name: Run unit and recent-block mainnet-fork tests
+        run: forge test -vvv
+      - name: Inspect deployed bytecode size
+        run: forge build --sizes

@@ -36,6 +36,22 @@ jay-scan --config config.example.json \
 
 The output remains unsigned JSON. It is not a transaction and cannot move funds.
 
+## Continuous monitoring
+
+Run one read-only monitoring pass:
+
+```bash
+jay-monitor --config config.example.json --once
+```
+
+Or continuously scan the configured allowlisted cycles every 60 seconds:
+
+```bash
+jay-monitor --config config.example.json --interval 60 --cooldown 300
+```
+
+Results are stored in `scanner/data/opportunities.db`. Profitable results print an alert to the console. To add optional Discord alerts, set `DISCORD_WEBHOOK_URL`; the webhook receives a message only and cannot control the bot. Repeated alerts for the same cycle are suppressed during the cooldown.
+
 The example route is expected to be rejected under normal conditions because it round-trips through fees. That is a safety test, not a profit opportunity.
 
 ## Safety boundary

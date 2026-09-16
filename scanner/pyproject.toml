@@ -17,5 +17,9 @@ dev = ["pytest>=8.0,<9"]
 [project.scripts]
 jay-scan = "jaytradingbot_scanner.cli:main"
 
+[tool.setuptools.packages.find]
+include = ["jaytradingbot_scanner*"]
+exclude = ["fixtures*", "scripts*", "tests*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

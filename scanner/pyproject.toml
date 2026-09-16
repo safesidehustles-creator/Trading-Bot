@@ -8,16 +8,23 @@ version = "0.1.0"
 description = "Read-only arbitrage opportunity scanner and simulator"
 requires-python = ">=3.11"
 dependencies = [
+  "fastapi>=0.117,<1",
   "web3>=7.0,<8",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0,<9"]
+dev = [
+  "httpx>=0.27,<1",
+  "pytest>=8.0,<9",
+]
 
 [project.scripts]
 jay-scan = "jaytradingbot_scanner.cli:main"
 jay-monitor = "jaytradingbot_scanner.monitor_cli:main"
 jay-dashboard = "jaytradingbot_scanner.dashboard_cli:main"
+
+[tool.vercel]
+entrypoint = "jaytradingbot_scanner.api:app"
 
 [tool.setuptools.package-data]
 jaytradingbot_scanner = ["dashboard.html"]

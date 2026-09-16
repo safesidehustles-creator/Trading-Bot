@@ -40,7 +40,7 @@ This is not an independent professional audit, formal verification, or guarantee
 
 ### No critical or high-severity issue found in reviewed scope
 
-The unit tests cover successful repayment/profit accounting and atomic rollback. The live-state fork test uses actual Ethereum Aave V3 and Uniswap V3 contracts and expects the bot's exact `InsufficientProfit` error after a fee-losing WETH/USDC/WETH round trip. Production release testing should additionally pin a block using a reliable archive RPC.
+The unit tests cover successful repayment/profit accounting and atomic rollback. CI pins a stable recent Ethereum block 64 blocks behind the chain tip, then uses actual Aave V3 and Uniswap V3 contracts and expects the bot's exact `InsufficientProfit` error after a fee-losing WETH/USDC/WETH round trip. Production release testing should additionally preserve the final validated block using a reliable archive RPC.
 
 ### SR-01 — Centralized owner authority (Informational)
 

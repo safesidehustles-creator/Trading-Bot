@@ -5,9 +5,13 @@ import {JayTradingBotFlashArbitrage} from "../src/JayTradingBotFlashArbitrage.so
 
 interface Vm {
     function createSelectFork(string calldata urlOrAlias) external returns (uint256 forkId);
+    function createSelectFork(string calldata urlOrAlias, uint256 blockNumber)
+        external
+        returns (uint256 forkId);
     function envOr(string calldata name, string calldata defaultValue)
         external
         returns (string memory value);
+    function envOr(string calldata name, uint256 defaultValue) external returns (uint256 value);
     function expectRevert(bytes4 revertData) external;
 }
 
@@ -27,7 +31,12 @@ contract MainnetForkTest {
         string memory rpcUrl = vm.envOr("ETHEREUM_RPC_URL", string(""));
         if (bytes(rpcUrl).length == 0) return;
 
-        vm.createSelectFork(rpcUrl);
+        uint256 forkBlock = vm.envOr("FORK_BLOCK_NUMBER", uint256(0));
+        if (forkBlock == 0) {
+            vm.createSelectFork(rpcUrl);
+        } else {
+            vm.createSelectFork(rpcUrl, forkBlock);
+        }
         forkEnabled = true;
         bot = new JayTradingBotFlashArbitrage(AAVE_V3_PROVIDER, address(this));
         bot.setTokenAllowed(WETH, true);

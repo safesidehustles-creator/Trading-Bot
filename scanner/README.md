@@ -52,6 +52,18 @@ jay-monitor --config config.example.json --interval 60 --cooldown 300
 
 Results are stored in `scanner/data/opportunities.db`. Profitable results print an alert to the console. To add optional Discord alerts, set `DISCORD_WEBHOOK_URL`; the webhook receives a message only and cannot control the bot. Repeated alerts for the same cycle are suppressed during the cooldown.
 
+## Local read-only dashboard
+
+After the monitor has created its database, start the dashboard:
+
+```bash
+jay-dashboard --database scanner/data/opportunities.db
+```
+
+Open `http://127.0.0.1:8080`. The dashboard shows summary counts, recent scans, route health, estimated net profit, gas costs, rejection reasons, errors, and alert history. It refreshes every 15 seconds.
+
+The server binds only to your device by default and accepts no write or execution operations. Do not expose it publicly without adding authentication and HTTPS.
+
 The example route is expected to be rejected under normal conditions because it round-trips through fees. That is a safety test, not a profit opportunity.
 
 ## Safety boundary

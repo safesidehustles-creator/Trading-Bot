@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>JayTradingBot — Read-Only Monitor</title>
+  <style>
+    :root { color-scheme: dark; --bg:#07111f; --card:#0f2037; --line:#28415f; --text:#eef6ff; --muted:#9eb3c9; --gold:#e2b84b; --green:#55d68b; --red:#ff7c83; }
+    * { box-sizing:border-box; } body { margin:0; font:15px/1.5 system-ui,sans-serif; background:var(--bg); color:var(--text); }
+    main { max-width:1180px; margin:auto; padding:24px; } header { display:flex; justify-content:space-between; gap:16px; align-items:center; flex-wrap:wrap; }
+    h1 { margin:0; } .badge { padding:7px 12px; border:1px solid var(--green); color:var(--green); border-radius:999px; }
+    .notice { margin:20px 0; padding:12px 16px; border-left:4px solid var(--gold); background:#171c29; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+    .metric { font-size:28px; font-weight:750; } .label,.muted { color:var(--muted); }
+    section { margin-top:24px; } table { width:100%; border-collapse:collapse; overflow:hidden; }
+    th,td { text-align:left; padding:10px; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--muted); } .scroll { overflow:auto; } select,button { background:var(--card); color:var(--text); border:1px solid var(--line); padding:8px 10px; border-radius:8px; }
+    .opportunity { color:var(--green); } .error { color:var(--red); } code { word-break:break-all; }
+  </style>
+</head>
+<body>
+<main>
+  <header><div><h1>JayTradingBot</h1><div class="muted">Opportunity intelligence dashboard</div></div><span class="badge">READ-ONLY · EXECUTION OFF</span></header>
+  <div class="notice">This dashboard displays simulation data only. It cannot deploy contracts, access a wallet, sign, or send trades.</div>
+  <div class="grid" id="summary"></div>
+  <section><h2>Route health</h2><div class="card scroll"><table><thead><tr><th>Route</th><th>Scans</th><th>Opportunities</th><th>Errors</th><th>Best net</th><th>Latest</th></tr></thead><tbody id="routes"></tbody></table></div></section>
+  <section><header><h2>Recent scans</h2><select id="status"><option value="all">All</option><option value="opportunity">Opportunities</option><option value="rejected">Rejected</option><option value="error">Errors</option></select></header><div class="card scroll"><table><thead><tr><th>Time</th><th>Route</th><th>Status</th><th>Net profit</th><th>Gas</th><th>Reason</th></tr></thead><tbody id="results"></tbody></table></div></section>
+</main>
+<script>
+const esc=v=>String(v??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function get(path){const r=await fetch(path,{cache:'no-store'});if(!r.ok)throw new Error(await r.text());return r.json()}
+function state(r){return r.error?'error':Number(r.executable)?'opportunity':'rejected'}
+async function refresh(){
+ const [s,routes,results]=await Promise.all([get('/api/summary'),get('/api/routes'),get('/api/results?limit=100&status='+document.querySelector('#status').value)]);
+ document.querySelector('#summary').innerHTML=[['Total scans',s.total_scans],['Opportunities',s.opportunities],['Errors',s.errors],['Routes alerted',s.routes_alerted],['Last scan',s.last_scan]].map(x=>`<div class="card"><div class="label">${esc(x[0])}</div><div class="metric">${esc(x[1])}</div></div>`).join('');
+ document.querySelector('#routes').innerHTML=routes.map(x=>`<tr><td>${esc(x.cycle)}</td><td>${esc(x.scans)}</td><td>${esc(x.opportunities)}</td><td>${esc(x.errors)}</td><td><code>${esc(x.best_net_profit)}</code></td><td>${esc(x.last_status)}<br><span class="muted">${esc(x.last_scanned_at)}</span></td></tr>`).join('');
+ document.querySelector('#results').innerHTML=results.map(x=>`<tr><td>${esc(x.scanned_at)}</td><td>${esc(x.cycle)}</td><td class="${state(x)}">${state(x)}</td><td><code>${esc(x.net_profit)}</code></td><td><code>${esc(x.gas_cost)}</code></td><td>${esc(x.error||x.rejection_reason)}</td></tr>`).join('');
+}
+document.querySelector('#status').addEventListener('change',refresh); refresh(); setInterval(refresh,15000);
+</script>
+</body>
+</html>

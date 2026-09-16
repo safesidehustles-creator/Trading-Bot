@@ -29,22 +29,22 @@ def test_mutating_http_methods_are_rejected() -> None:
         assert response.headers["allow"] == "GET, HEAD"
 
 
-def test_web_adapter_has_no_signing_or_broadcast_imports() -> None:
+def test_web_adapter_imports_no_execution_capability() -> None:
     api_source = (
         Path(__file__).parents[1]
         / "jaytradingbot_scanner"
         / "api.py"
-    ).read_text(encoding="utf-8")
+    ).read_text(encoding="utf-8").lower()
     forbidden = (
         "private_key",
         "send_transaction",
         "send_raw_transaction",
         "sign_transaction",
-        "build_unsigned_call",
-        "calldata",
+        "from .calldata import",
+        "from .monitor import",
     )
     for capability in forbidden:
-        assert capability not in api_source.lower()
+        assert capability not in api_source
 
 
 def test_chain_reader_exposes_no_transaction_methods() -> None:

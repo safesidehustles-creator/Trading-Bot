@@ -58,7 +58,10 @@ interface IUniswapV3SwapRouter {
 /// @notice Executes an owner-supplied, pre-quoted route using an Aave V3 flash loan.
 /// @dev This contract does not discover opportunities. An off-chain searcher must quote and simulate routes.
 contract JayTradingBotFlashArbitrage is IFlashLoanSimpleReceiver {
-    enum RouterKind { UniswapV2Compatible, UniswapV3Compatible }
+    enum RouterKind {
+        UniswapV2Compatible,
+        UniswapV3Compatible
+    }
 
     struct SwapLeg {
         RouterKind kind;
@@ -78,6 +81,7 @@ contract JayTradingBotFlashArbitrage is IFlashLoanSimpleReceiver {
     }
 
     address public owner;
+    address public pendingOwner;
     IAavePoolAddressesProvider public immutable addressesProvider;
     bool public paused;
 
@@ -87,6 +91,7 @@ contract JayTradingBotFlashArbitrage is IFlashLoanSimpleReceiver {
     uint256 private locked = 1;
 
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event OwnershipTransferStarted(address indexed currentOwner, address indexed pendingOwner);
     event RouterPermissionSet(address indexed router, bool allowed);
     event TokenPermissionSet(address indexed token, bool allowed);
     event PauseSet(bool paused);
@@ -151,8 +156,16 @@ contract JayTradingBotFlashArbitrage is IFlashLoanSimpleReceiver {
 
     function transferOwnership(address newOwner) external onlyOwner {
         if (newOwner == address(0)) revert InvalidAddress();
-        emit OwnershipTransferred(owner, newOwner);
-        owner = newOwner;
+        pendingOwner = newOwner;
+        emit OwnershipTransferStarted(owner, newOwner);
+    }
+
+    function acceptOwnership() external {
+        if (msg.sender != pendingOwner) revert NotOwner();
+        address previousOwner = owner;
+        owner = msg.sender;
+        pendingOwner = address(0);
+        emit OwnershipTransferred(previousOwner, msg.sender);
     }
 
     /// @notice Starts an atomic Aave flash-loan route. Reverts unless minimumProfit is achieved.
@@ -188,9 +201,8 @@ contract JayTradingBotFlashArbitrage is IFlashLoanSimpleReceiver {
             })
         );
 
-        IAavePool(addressesProvider.getPool()).flashLoanSimple(
-            address(this), asset, amount, params, 0
-        );
+        IAavePool(addressesProvider.getPool())
+            .flashLoanSimple(address(this), asset, amount, params, 0);
 
         uint256 balanceAfter = IERC20(asset).balanceOf(address(this));
         profit = balanceAfter - balanceBefore;
@@ -232,7 +244,11 @@ contract JayTradingBotFlashArbitrage is IFlashLoanSimpleReceiver {
         return true;
     }
 
-    function rescueToken(address token, address recipient, uint256 amount) external onlyOwner {
+    function rescueToken(address token, address recipient, uint256 amount)
+        external
+        onlyOwner
+        nonReentrant
+    {
         if (recipient == address(0)) revert InvalidAddress();
         _safeTransfer(token, recipient, amount);
         emit Rescue(token, recipient, amount);
@@ -252,37 +268,38 @@ contract JayTradingBotFlashArbitrage is IFlashLoanSimpleReceiver {
         if (expected != asset) revert InvalidRoute();
     }
 
-    function _executeLeg(
-        SwapLeg memory leg,
-        uint256 amountIn,
-        uint256 deadline
-    ) internal returns (uint256 amountOut) {
+    function _executeLeg(SwapLeg memory leg, uint256 amountIn, uint256 deadline)
+        internal
+        returns (uint256 amountOut)
+    {
         _forceApprove(leg.tokenIn, leg.router, amountIn);
 
         if (leg.kind == RouterKind.UniswapV2Compatible) {
             address[] memory path = abi.decode(leg.route, (address[]));
-            if (
-                path.length < 2 || path[0] != leg.tokenIn ||
-                path[path.length - 1] != leg.tokenOut
-            ) revert InvalidRoute();
-            uint256[] memory amounts = IUniswapV2Router(leg.router).swapExactTokensForTokens(
-                amountIn, leg.amountOutMinimum, path, address(this), deadline
-            );
+            if (path.length < 2 || path[0] != leg.tokenIn || path[path.length - 1] != leg.tokenOut)
+            {
+                revert InvalidRoute();
+            }
+            uint256[] memory amounts = IUniswapV2Router(leg.router)
+                .swapExactTokensForTokens(
+                    amountIn, leg.amountOutMinimum, path, address(this), deadline
+                );
             amountOut = amounts[amounts.length - 1];
         } else {
             if (
-                leg.route.length < 43 || _firstToken(leg.route) != leg.tokenIn ||
-                _lastToken(leg.route) != leg.tokenOut
+                leg.route.length < 43 || _firstToken(leg.route) != leg.tokenIn
+                    || _lastToken(leg.route) != leg.tokenOut
             ) revert InvalidRoute();
-            amountOut = IUniswapV3SwapRouter(leg.router).exactInput(
-                IUniswapV3SwapRouter.ExactInputParams({
+            amountOut = IUniswapV3SwapRouter(leg.router)
+                .exactInput(
+                    IUniswapV3SwapRouter.ExactInputParams({
                     path: leg.route,
                     recipient: address(this),
                     deadline: deadline,
                     amountIn: amountIn,
                     amountOutMinimum: leg.amountOutMinimum
                 })
-            );
+                );
         }
 
         _forceApprove(leg.tokenIn, leg.router, 0);
@@ -298,18 +315,15 @@ contract JayTradingBotFlashArbitrage is IFlashLoanSimpleReceiver {
     }
 
     function _safeTransfer(address token, address to, uint256 amount) internal {
-        (bool ok, bytes memory result) = token.call(
-            abi.encodeCall(IERC20.transfer, (to, amount))
-        );
+        (bool ok, bytes memory result) = token.call(abi.encodeCall(IERC20.transfer, (to, amount)));
         if (!ok || (result.length != 0 && !abi.decode(result, (bool)))) {
             revert TokenOperationFailed();
         }
     }
 
     function _forceApprove(address token, address spender, uint256 amount) internal {
-        (bool ok, bytes memory result) = token.call(
-            abi.encodeCall(IERC20.approve, (spender, amount))
-        );
+        (bool ok, bytes memory result) =
+            token.call(abi.encodeCall(IERC20.approve, (spender, amount)));
         if (ok && (result.length == 0 || abi.decode(result, (bool)))) return;
 
         (ok, result) = token.call(abi.encodeCall(IERC20.approve, (spender, 0)));

@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {JayTradingBotFlashArbitrage, IERC20, IFlashLoanSimpleReceiver} from
-    "../src/JayTradingBotFlashArbitrage.sol";
+import {
+    JayTradingBotFlashArbitrage,
+    IERC20,
+    IFlashLoanSimpleReceiver
+} from "../src/JayTradingBotFlashArbitrage.sol";
 
 contract MockToken is IERC20 {
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
 
-    function mint(address to, uint256 amount) external { balanceOf[to] += amount; }
+    function mint(address to, uint256 amount) external {
+        balanceOf[to] += amount;
+    }
 
     function transfer(address to, uint256 amount) external returns (bool) {
         balanceOf[msg.sender] -= amount;
@@ -32,8 +37,14 @@ contract MockToken is IERC20 {
 
 contract MockProvider {
     address public pool;
-    function setPool(address value) external { pool = value; }
-    function getPool() external view returns (address) { return pool; }
+
+    function setPool(address value) external {
+        pool = value;
+    }
+
+    function getPool() external view returns (address) {
+        return pool;
+    }
 }
 
 contract MockPool {
@@ -46,13 +57,15 @@ contract MockPool {
         bytes calldata params,
         uint16
     ) external {
-        MockToken(asset).transfer(receiver, amount);
+        require(MockToken(asset).transfer(receiver, amount), "loan transfer failed");
         uint256 premium = amount * PREMIUM_BPS / 10_000;
-        bool ok = IFlashLoanSimpleReceiver(receiver).executeOperation(
-            asset, amount, premium, receiver, params
-        );
+        bool ok = IFlashLoanSimpleReceiver(receiver)
+            .executeOperation(asset, amount, premium, receiver, params);
         require(ok, "callback failed");
-        MockToken(asset).transferFrom(receiver, address(this), amount + premium);
+        require(
+            MockToken(asset).transferFrom(receiver, address(this), amount + premium),
+            "repayment failed"
+        );
     }
 }
 
@@ -72,10 +85,13 @@ contract MockV2Router {
         address to,
         uint256
     ) external returns (uint256[] memory amounts) {
-        MockToken(path[0]).transferFrom(msg.sender, address(this), amountIn);
+        require(
+            MockToken(path[0]).transferFrom(msg.sender, address(this), amountIn),
+            "input transfer failed"
+        );
         uint256 amountOut = amountIn * numerator / denominator;
         require(amountOut >= amountOutMin, "slippage");
-        MockToken(path[path.length - 1]).transfer(to, amountOut);
+        require(MockToken(path[path.length - 1]).transfer(to, amountOut), "output transfer failed");
         amounts = new uint256[](path.length);
         amounts[0] = amountIn;
         amounts[path.length - 1] = amountOut;
@@ -138,12 +154,26 @@ contract JayTradingBotFlashArbitrageTest {
         }
     }
 
+    function testOwnershipTransferRequiresAcceptance() public {
+        OwnershipAcceptor nextOwner = new OwnershipAcceptor();
+        bot.transferOwnership(address(nextOwner));
+
+        require(bot.owner() == address(this), "ownership changed too early");
+        require(bot.pendingOwner() == address(nextOwner), "pending owner not stored");
+
+        nextOwner.accept(bot);
+        require(bot.owner() == address(nextOwner), "ownership not accepted");
+        require(bot.pendingOwner() == address(0), "pending owner not cleared");
+    }
+
     function _route() internal view returns (JayTradingBotFlashArbitrage.SwapLeg[] memory) {
         return _routeWithSecond(routerBA);
     }
 
     function _routeWithSecond(MockV2Router second)
-        internal view returns (JayTradingBotFlashArbitrage.SwapLeg[] memory legs)
+        internal
+        view
+        returns (JayTradingBotFlashArbitrage.SwapLeg[] memory legs)
     {
         legs = new JayTradingBotFlashArbitrage.SwapLeg[](2);
         address[] memory pathAB = new address[](2);
@@ -169,5 +199,11 @@ contract JayTradingBotFlashArbitrageTest {
             amountOutMinimum: 1,
             route: abi.encode(pathBA)
         });
+    }
+}
+
+contract OwnershipAcceptor {
+    function accept(JayTradingBotFlashArbitrage bot) external {
+        bot.acceptOwnership();
     }
 }

@@ -12,7 +12,11 @@ interface Vm {
         external
         returns (string memory value);
     function envOr(string calldata name, uint256 defaultValue) external returns (uint256 value);
-    function expectPartialRevert(bytes4 revertData) external;
+    function readFile(string calldata path) external view returns (string memory data);
+    function parseJsonBytes(string calldata json, string calldata key)
+        external
+        pure
+        returns (bytes memory value);
 }
 
 /// @dev Live-state integration test using actual Ethereum Aave V3 and Uniswap V3 contracts.
@@ -49,27 +53,19 @@ contract MainnetForkTest {
     function testForkRejectsRealUnprofitableAaveUniswapRoute() public {
         if (!forkEnabled) return;
 
-        JayTradingBotFlashArbitrage.SwapLeg[] memory legs =
-            new JayTradingBotFlashArbitrage.SwapLeg[](2);
+        string memory fixture = vm.readFile("scanner/fixtures/mainnet_rejection_call.json");
+        bytes memory unsignedData = vm.parseJsonBytes(fixture, ".data");
 
-        legs[0] = JayTradingBotFlashArbitrage.SwapLeg({
-            kind: JayTradingBotFlashArbitrage.RouterKind.UniswapV3Compatible,
-            router: UNISWAP_V3_ROUTER,
-            tokenIn: WETH,
-            tokenOut: USDC,
-            amountOutMinimum: 0,
-            route: abi.encodePacked(WETH, uint24(500), USDC)
-        });
-        legs[1] = JayTradingBotFlashArbitrage.SwapLeg({
-            kind: JayTradingBotFlashArbitrage.RouterKind.UniswapV3Compatible,
-            router: UNISWAP_V3_ROUTER,
-            tokenIn: USDC,
-            tokenOut: WETH,
-            amountOutMinimum: 0,
-            route: abi.encodePacked(USDC, uint24(500), WETH)
-        });
-
-        vm.expectPartialRevert(JayTradingBotFlashArbitrage.InsufficientProfit.selector);
-        bot.startFlashArbitrage(WETH, 1 ether, legs, 0, block.timestamp + 60, address(this));
+        (bool success, bytes memory revertData) = address(bot).call(unsignedData);
+        require(!success, "known losing calldata unexpectedly succeeded");
+        require(revertData.length >= 4, "missing custom error");
+        bytes4 selector;
+        assembly {
+            selector := mload(add(revertData, 32))
+        }
+        require(
+            selector == JayTradingBotFlashArbitrage.InsufficientProfit.selector,
+            "wrong rejection reason"
+        );
     }
 }

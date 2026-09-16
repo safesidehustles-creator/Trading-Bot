@@ -27,10 +27,14 @@ class OpportunityEngine:
             raise ValueError("safety_margin_bps must be between 0 and 9999")
 
         quoted = cycle.amount_in
+        leg_quotes: list[int] = []
+        leg_minimums: list[int] = []
         for leg in cycle.legs:
             quoted = self._quote_leg(leg, quoted)
             if quoted <= 0:
                 raise ValueError("quoter returned a non-positive amount")
+            leg_quotes.append(quoted)
+            leg_minimums.append(quoted * (10_000 - policy.slippage_bps) // 10_000)
 
         protected = quoted * (10_000 - policy.slippage_bps) // 10_000
         premium = cycle.amount_in * premium_bps // 10_000
@@ -54,6 +58,8 @@ class OpportunityEngine:
             net_profit=net_profit,
             executable=executable,
             rejection_reason=reason,
+            leg_quotes=tuple(leg_quotes),
+            leg_minimums=tuple(leg_minimums),
         )
 
     @staticmethod

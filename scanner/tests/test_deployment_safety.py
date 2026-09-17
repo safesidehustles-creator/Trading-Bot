@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -46,6 +48,21 @@ def test_web_adapter_imports_no_execution_capability() -> None:
     )
     for capability in forbidden:
         assert capability not in api_source
+
+
+def test_web_import_graph_does_not_load_calldata_capability() -> None:
+    probe = (
+        "import sys; "
+        "import jaytradingbot_scanner.api; "
+        "assert 'jaytradingbot_scanner.calldata' not in sys.modules"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        check=False,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_vercel_uses_fastapi_autodetection_without_manual_function_map() -> None:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import asdict, replace
+from dataclasses import asdict
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from .chain import ReadOnlyChain
 from .config import load_config
+from .discovery import build_default_cycles
 from .engine import OpportunityEngine
 
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -129,20 +130,32 @@ def scan(amount_eth: str | None = None) -> JSONResponse:
         )
 
     try:
-        provider, policy, cycles = load_config(str(CONFIG_PATH))
-        if amount_wei is not None:
-            cycles = tuple(replace(cycle, amount_in=amount_wei) for cycle in cycles)
+        provider, policy, _configured_cycles = load_config(str(CONFIG_PATH))
+        selected_amount = amount_wei or 10**16
+        cycles = build_default_cycles((selected_amount,))
         chain = ReadOnlyChain(rpc_url)
         engine = OpportunityEngine(chain.quote_leg)
         premium_bps = chain.aave_premium_bps(provider)
-        payload = [
-            asdict(engine.evaluate(cycle, policy, premium_bps, chain.gas_price_wei))
-            for cycle in cycles
-        ]
+        gas_price_wei = chain.gas_price_wei
+        payload: list[dict[str, object]] = []
+        for cycle in cycles:
+            try:
+                payload.append(
+                    asdict(engine.evaluate(cycle, policy, premium_bps, gas_price_wei))
+                )
+            except Exception as exc:
+                payload.append({
+                    "cycle": cycle.name,
+                    "amount_in": cycle.amount_in,
+                    "executable": False,
+                    "error": str(exc)[:200],
+                    "rejection_reason": "quote unavailable; candidate skipped",
+                })
         return JSONResponse(
             {
                 "mode": "simulation-only",
-                "flash_loan_amount_eth": amount_eth or "configured-default",
+                "flash_loan_amount_eth": amount_eth or "0.01",
+                "candidates_scanned": len(cycles),
                 "deposit_required": False,
                 "execution_enabled": False,
                 "signing_enabled": False,

@@ -16,7 +16,7 @@ def test_health_proves_execution_is_disabled() -> None:
     assert response.status_code == 200
     assert response.json() == {
         "status": "ok",
-        "mode": "read-only",
+        "mode": "fork-simulation-preparation",
         "contract_deployed": False,
         "execution_enabled": False,
         "signing_enabled": False,
@@ -43,6 +43,7 @@ def test_web_adapter_imports_no_execution_capability() -> None:
         "send_transaction",
         "send_raw_transaction",
         "sign_transaction",
+        "eth_account",
         "from .calldata import",
         "from .monitor import",
     )
@@ -88,3 +89,38 @@ def test_scan_requires_only_read_only_rpc_configuration(monkeypatch) -> None:
         "error": "ETHEREUM_RPC_URL is not configured",
         "mode": "read-only",
     }
+
+
+def test_selectable_amount_is_validated_before_rpc(monkeypatch) -> None:
+    monkeypatch.delenv("ETHEREUM_RPC_URL", raising=False)
+    invalid = {
+        "0": "amount_eth must be between 0.001 and 100",
+        "0.0009": "amount_eth must be between 0.001 and 100",
+        "101": "amount_eth must be between 0.001 and 100",
+        "not-a-number": "amount_eth must be a decimal number",
+        "NaN": "amount_eth must be finite",
+        "0.0010000000000000001": "amount_eth supports at most 18 decimal places",
+    }
+    for value, message in invalid.items():
+        response = client.get("/api/scan", params={"amount_eth": value})
+        assert response.status_code == 400
+        assert response.json() == {"error": message, "mode": "simulation-only"}
+
+
+def test_valid_small_amount_reaches_read_only_rpc_gate(monkeypatch) -> None:
+    monkeypatch.delenv("ETHEREUM_RPC_URL", raising=False)
+    response = client.get("/api/scan", params={"amount_eth": "0.001"})
+    assert response.status_code == 503
+    assert response.json()["error"] == "ETHEREUM_RPC_URL is not configured"
+
+
+def test_dashboard_has_no_wallet_or_execution_controls() -> None:
+    source = (
+        Path(__file__).parents[1]
+        / "jaytradingbot_scanner"
+        / "dashboard.html"
+    ).read_text(encoding="utf-8").lower()
+    assert "run read-only simulation" in source
+    assert "mainnet execution locked" in source
+    for forbidden in ("window.ethereum", "eth_requestaccounts", "sendtransaction"):
+        assert forbidden not in source

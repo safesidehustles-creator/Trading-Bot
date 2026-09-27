@@ -8,6 +8,8 @@ It **does not** create a token, exploit a protocol, discover profitable trades o
 
 The contract is intentionally **undeployed**. Development uses unit tests, Ethereum forks, and read-only RPC calls only. The phase-one scanner in [`scanner/`](scanner/) evaluates opportunities without a private key and cannot sign or broadcast transactions.
 
+The dashboard accepts a **simulated borrowed WETH amount** from 0.001 to 100 WETH. That number is passed to the quote engine as the proposed Aave loan size; it is not a deposit and does not move funds. Mainnet execution stays locked until the exact transaction passes current-block fork simulation and the contract is deliberately deployed and configured.
+
 ## Execution flow
 
 1. An off-chain searcher quotes a closed route that starts and ends with the Aave loan asset.
@@ -30,7 +32,7 @@ The contract is intentionally **undeployed**. Development uses unit tests, Ether
 - Exact token approvals that are cleared after each swap
 - Reentrancy guard on the external entry point
 
-These controls reduce risk; they do not make arbitrage profitable or eliminate smart-contract, oracle, MEV, liquidity, gas, and integration risks. This code has not been audited. Do not deploy with real funds before independent review and mainnet-fork testing.
+These controls reduce risk; they do not make arbitrage profitable or eliminate smart-contract, oracle, MEV, liquidity, gas, and integration risks. This code has not been audited. Do not deploy with real funds before extensive review and mainnet-fork testing.
 
 ## Build and test
 
@@ -59,8 +61,8 @@ The first leg must begin with the loan asset, every leg must connect to the next
 2. Deploy with the provider and a secure owner address (preferably a multisig).
 3. Allow only the exact ERC-20 tokens and router contracts required.
 4. Build an off-chain quoter/searcher that includes Aave premium, gas, price impact, and conservative slippage.
-5. Simulate the exact signed transaction against a current mainnet fork.
-6. Start with dry runs. Obtain an independent audit before production use.
+5. Simulate the exact unsigned transaction against a current mainnet fork.
+6. Start with dry runs and complete a security review before production use.
 
 ## Legal and ethical use
 

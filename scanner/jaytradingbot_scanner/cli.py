@@ -41,18 +41,28 @@ def main() -> None:
         raise SystemExit("--contract and --profit-recipient must be provided together")
 
     results = []
+    gas_price_wei = chain.gas_price_wei
     for cycle in cycles:
-        result = engine.evaluate(cycle, policy, premium_bps, chain.gas_price_wei)
-        item = asdict(result)
-        if result.executable and args.contract:
-            item["unsigned_call"] = build_unsigned_call(
-                cycle=cycle,
-                result=result,
-                contract_address=args.contract,
-                profit_recipient=args.profit_recipient,
-                minimum_profit=policy.minimum_profit,
-                deadline=int(time.time()) + args.deadline_seconds,
-            ).to_dict()
+        try:
+            result = engine.evaluate(cycle, policy, premium_bps, gas_price_wei)
+            item = asdict(result)
+            if result.executable and args.contract:
+                item["unsigned_call"] = build_unsigned_call(
+                    cycle=cycle,
+                    result=result,
+                    contract_address=args.contract,
+                    profit_recipient=args.profit_recipient,
+                    minimum_profit=policy.minimum_profit,
+                    deadline=int(time.time()) + args.deadline_seconds,
+                ).to_dict()
+        except Exception as exc:
+            item = {
+                "cycle": cycle.name,
+                "amount_in": cycle.amount_in,
+                "executable": False,
+                "error": str(exc)[:200],
+                "rejection_reason": "quote unavailable; candidate skipped",
+            }
         results.append(item)
     print(json.dumps(results, indent=2))
 

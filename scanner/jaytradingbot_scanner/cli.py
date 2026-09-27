@@ -9,6 +9,7 @@ from dataclasses import asdict
 from .chain import ReadOnlyChain
 from .calldata import build_unsigned_call
 from .config import load_config
+from .discovery import build_default_cycles
 from .engine import OpportunityEngine
 
 
@@ -18,6 +19,11 @@ def main() -> None:
     parser.add_argument("--contract", help="Deployed bot address used only as unsigned call target")
     parser.add_argument("--profit-recipient", help="Recipient encoded into unsigned calldata")
     parser.add_argument("--deadline-seconds", type=int, default=120)
+    parser.add_argument(
+        "--discover",
+        action="store_true",
+        help="quote allowlisted venues, stablecoins, fee tiers, and 0.001-1 WETH sizes",
+    )
     args = parser.parse_args()
 
     rpc_url = os.environ.get("ETHEREUM_RPC_URL")
@@ -25,6 +31,8 @@ def main() -> None:
         raise SystemExit("ETHEREUM_RPC_URL is required; no private key is used")
 
     provider, policy, cycles = load_config(args.config)
+    if args.discover:
+        cycles = list(build_default_cycles())
     chain = ReadOnlyChain(rpc_url)
     engine = OpportunityEngine(chain.quote_leg)
     premium_bps = chain.aave_premium_bps(provider)

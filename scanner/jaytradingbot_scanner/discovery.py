@@ -19,7 +19,7 @@ DEFAULT_AMOUNTS_WEI = (10**15, 10**16, 10**17, 10**18)
 
 
 def _v3_cycle(symbol: str, token: str, fee: int, amount: int) -> Cycle:
-    label = f"Uniswap V3 {fee / 10_000:.2%}"
+    label = f"Uniswap V3 {fee / 1_000_000:.2%}"
     return Cycle(
         name=f"WETH-{symbol}-WETH · {label} · {amount} wei",
         asset=WETH,

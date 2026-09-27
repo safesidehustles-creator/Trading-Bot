@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import os
-from dataclasses import asdict
+from dataclasses import asdict, replace
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -13,9 +14,12 @@ from .engine import OpportunityEngine
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = PACKAGE_DIR.parent / "config.example.json"
+WEI_PER_ETH = Decimal(10**18)
+MIN_SIMULATION_ETH = Decimal("0.001")
+MAX_SIMULATION_ETH = Decimal("100")
 
 app = FastAPI(
-    title="JayTradingBot Read-Only Monitor",
+    title="JayTradingBot Fork Simulation Monitor",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -41,6 +45,25 @@ async def enforce_read_only(request: Request, call_next):
     return response
 
 
+def _simulation_amount_wei(amount_eth: str | None) -> int | None:
+    if amount_eth is None:
+        return None
+    try:
+        amount = Decimal(amount_eth)
+    except InvalidOperation as exc:
+        raise ValueError("amount_eth must be a decimal number") from exc
+    if not amount.is_finite():
+        raise ValueError("amount_eth must be finite")
+    if amount < MIN_SIMULATION_ETH or amount > MAX_SIMULATION_ETH:
+        raise ValueError(
+            f"amount_eth must be between {MIN_SIMULATION_ETH} and {MAX_SIMULATION_ETH}"
+        )
+    amount_wei = amount * WEI_PER_ETH
+    if amount_wei != amount_wei.to_integral_value():
+        raise ValueError("amount_eth supports at most 18 decimal places")
+    return int(amount_wei)
+
+
 @app.get("/", response_class=HTMLResponse)
 def dashboard() -> HTMLResponse:
     return HTMLResponse((PACKAGE_DIR / "dashboard.html").read_text(encoding="utf-8"))
@@ -50,7 +73,7 @@ def dashboard() -> HTMLResponse:
 def health() -> dict[str, object]:
     return {
         "status": "ok",
-        "mode": "read-only",
+        "mode": "fork-simulation-preparation",
         "contract_deployed": False,
         "execution_enabled": False,
         "signing_enabled": False,
@@ -88,8 +111,16 @@ def alerts() -> list[object]:
 
 
 @app.get("/api/scan")
-def scan() -> JSONResponse:
-    """Run one stateless quote pass. No calldata, signing, or sending is available."""
+def scan(amount_eth: str | None = None) -> JSONResponse:
+    """Quote a selectable WETH flash-loan size without signing or sending."""
+    try:
+        amount_wei = _simulation_amount_wei(amount_eth)
+    except ValueError as exc:
+        return JSONResponse(
+            {"error": str(exc), "mode": "simulation-only"},
+            status_code=400,
+        )
+
     rpc_url = os.environ.get("ETHEREUM_RPC_URL")
     if not rpc_url:
         return JSONResponse(
@@ -99,6 +130,8 @@ def scan() -> JSONResponse:
 
     try:
         provider, policy, cycles = load_config(str(CONFIG_PATH))
+        if amount_wei is not None:
+            cycles = tuple(replace(cycle, amount_in=amount_wei) for cycle in cycles)
         chain = ReadOnlyChain(rpc_url)
         engine = OpportunityEngine(chain.quote_leg)
         premium_bps = chain.aave_premium_bps(provider)
@@ -108,7 +141,9 @@ def scan() -> JSONResponse:
         ]
         return JSONResponse(
             {
-                "mode": "read-only",
+                "mode": "simulation-only",
+                "flash_loan_amount_eth": amount_eth or "configured-default",
+                "deposit_required": False,
                 "execution_enabled": False,
                 "signing_enabled": False,
                 "broadcast_enabled": False,
@@ -117,6 +152,6 @@ def scan() -> JSONResponse:
         )
     except Exception as exc:
         return JSONResponse(
-            {"error": str(exc)[:300], "mode": "read-only"},
+            {"error": str(exc)[:300], "mode": "simulation-only"},
             status_code=503,
         )

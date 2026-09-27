@@ -10,7 +10,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from .chain import ReadOnlyChain
 from .config import load_config
-from .discovery import build_default_cycles
+from .discovery import build_web_cycles
 from .engine import OpportunityEngine
 
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -132,7 +132,7 @@ def scan(amount_eth: str | None = None) -> JSONResponse:
     try:
         provider, policy, _configured_cycles = load_config(str(CONFIG_PATH))
         selected_amount = amount_wei or 10**16
-        cycles = build_default_cycles((selected_amount,))
+        cycles = build_web_cycles(selected_amount)
         chain = ReadOnlyChain(rpc_url)
         engine = OpportunityEngine(chain.quote_leg)
         premium_bps = chain.aave_premium_bps(provider)

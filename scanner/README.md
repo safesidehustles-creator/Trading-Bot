@@ -11,6 +11,11 @@ This scanner reads Ethereum quotes and rejects routes that do not clear all conf
 - Route continuity and closed-cycle validation
 - Slippage haircut, safety margin, gas, premium, and minimum-profit checks
 - JSON output with explicit accept/reject reasons
+- Allowlisted discovery across WETH/USDC, WETH/USDT, and WETH/DAI
+- Uniswap V3 fee tiers: 0.01%, 0.05%, 0.30%, and 1.00%
+- Uniswap V2 and SushiSwap V2 round-trip quotes
+- Flash-loan quote sizes: 0.001, 0.01, 0.1, and 1 WETH
+- Per-candidate error isolation when a pool is unavailable
 - Unsigned `startFlashArbitrage` calldata for accepted opportunities
 - Explicit refusal to build executable calldata for rejected opportunities
 
@@ -24,6 +29,9 @@ pip install -e '.[dev]'
 export ETHEREUM_RPC_URL='YOUR_READ_ONLY_RPC_URL'
 pytest -q
 jay-scan --config config.example.json
+
+# Compare all allowlisted routes and four borrowed WETH sizes.
+jay-scan --config config.example.json --discover
 ```
 
 To add unsigned call data for accepted results, provide both the target contract and profit recipient:

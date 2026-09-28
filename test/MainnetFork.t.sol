@@ -21,6 +21,8 @@ interface Vm {
 
 /// @dev Live-state integration test using actual Ethereum Aave V3 and Uniswap V3 contracts.
 contract MainnetForkTest {
+    event log_named_uint(string key, uint256 value);
+
     Vm private constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     address private constant AAVE_V3_PROVIDER = 0x2f39d218133AFaB8F2B819B1066c7E434Ad94E9e;
@@ -56,7 +58,13 @@ contract MainnetForkTest {
         string memory fixture = vm.readFile("scanner/fixtures/mainnet_rejection_call.json");
         bytes memory unsignedData = vm.parseJsonBytes(fixture, ".data");
 
+        uint256 gasBefore = gasleft();
         (bool success, bytes memory revertData) = address(bot).call(unsignedData);
+        uint256 measuredGas = gasBefore - gasleft();
+        emit log_named_uint("fork flash-loan route gas used", measuredGas);
+
+        require(measuredGas > 21_000, "gas measurement did not include route execution");
+        require(measuredGas < 750_000, "route gas exceeds safety ceiling");
         require(!success, "known losing calldata unexpectedly succeeded");
         require(revertData.length >= 4, "missing custom error");
         bytes4 selector;

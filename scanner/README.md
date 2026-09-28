@@ -11,6 +11,11 @@ This scanner reads Ethereum quotes and rejects routes that do not clear all conf
 - Route continuity and closed-cycle validation
 - Slippage haircut, safety margin, gas, premium, and minimum-profit checks
 - JSON output with explicit accept/reject reasons
+- Allowlisted discovery across WETH/USDC, WETH/USDT, and WETH/DAI
+- Uniswap V3 fee tiers: 0.01%, 0.05%, 0.30%, and 1.00%
+- Uniswap V2 and SushiSwap V2 round-trip quotes
+- Flash-loan quote sizes: 0.001, 0.01, 0.1, and 1 WETH
+- Per-candidate error isolation when a pool is unavailable
 - Unsigned `startFlashArbitrage` calldata for accepted opportunities
 - Explicit refusal to build executable calldata for rejected opportunities
 
@@ -24,6 +29,9 @@ pip install -e '.[dev]'
 export ETHEREUM_RPC_URL='YOUR_READ_ONLY_RPC_URL'
 pytest -q
 jay-scan --config config.example.json
+
+# Compare all allowlisted routes and four borrowed WETH sizes.
+jay-scan --config config.example.json --discover
 ```
 
 To add unsigned call data for accepted results, provide both the target contract and profit recipient:
@@ -44,11 +52,13 @@ Run one read-only monitoring pass:
 jay-monitor --config config.example.json --once
 ```
 
-Or continuously scan the configured allowlisted cycles every 60 seconds:
+Or continuously scan 36 prioritized cross-market routes for a selected Aave loan size:
 
 ```bash
-jay-monitor --config config.example.json --interval 60 --cooldown 300
+jay-monitor --config config.example.json --discover --amount-eth 0.1 --interval 10 --cooldown 300
 ```
+
+This remains read-only. It caches duplicate quote calls, records results locally, and alerts only when estimated profit survives Aave premium, measured gas assumptions, slippage, safety margin, and minimum profit. A 10-second polling monitor is useful for observation and testing, but it is not guaranteed to beat professional low-latency arbitrage systems.
 
 Results are stored in `scanner/data/opportunities.db`. Profitable results print an alert to the console. To add optional Discord alerts, set `DISCORD_WEBHOOK_URL`; the webhook receives a message only and cannot control the bot. Repeated alerts for the same cycle are suppressed during the cooldown.
 
@@ -69,3 +79,27 @@ The example route is expected to be rejected under normal conditions because it 
 ## Safety boundary
 
 There is intentionally no private-key setting, transaction signer, deployment command, or automatic executor. Rejected routes cannot produce normal call data; only the clearly marked `simulation_only` path can encode a known losing route for a safety test. Real broadcasting remains disabled during development.
+
+
+## Always-running worker container
+
+Build the scanner-only container from the repository root:
+
+```bash
+docker build -f Dockerfile.worker -t jaytradingbot-worker .
+```
+
+Run it with a read-only RPC and a persistent local data directory:
+
+```bash
+docker run --rm \
+  --name jaytradingbot-worker \
+  -e ETHEREUM_RPC_URL='YOUR_READ_ONLY_RPC_URL' \
+  -e FLASH_LOAN_AMOUNT_ETH='0.1' \
+  -e SCAN_INTERVAL_SECONDS='10' \
+  -e ALERT_COOLDOWN_SECONDS='300' \
+  -v jaytradingbot-data:/data \
+  jaytradingbot-worker
+```
+
+The image runs as a non-root user and contains the scanner package only. It has no private-key, wallet, signing, broadcasting, deployment, or automatic-execution setting. Hosting providers may charge for an always-running worker; review their current price before creating one.

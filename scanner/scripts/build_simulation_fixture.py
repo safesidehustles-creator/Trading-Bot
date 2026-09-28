@@ -8,11 +8,12 @@ from jaytradingbot_scanner.models import Cycle, Leg, QuoteResult, RouterKind
 WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
 USDC = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
 ROUTER = "0xE592427A0AEce92De3Edee1F18E0157C05861564"
+SIMULATED_FLASH_LOAN_AMOUNT = 10**15  # 0.001 WETH borrowed from Aave; not a deposit.
 
 cycle = Cycle(
     name="mainnet-fork rejection fixture",
     asset=WETH,
-    amount_in=10**18,
+    amount_in=SIMULATED_FLASH_LOAN_AMOUNT,
     legs=(
         Leg(RouterKind.V3, ROUTER, ROUTER, WETH, USDC, 500),
         Leg(RouterKind.V3, ROUTER, ROUTER, USDC, WETH, 500),

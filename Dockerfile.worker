@@ -1,0 +1,21 @@
+FROM python:3.12-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY scanner/pyproject.toml scanner/README.md ./scanner/
+COPY scanner/jaytradingbot_scanner ./scanner/jaytradingbot_scanner
+COPY scanner/config.example.json ./scanner/config.example.json
+
+RUN python -m pip install --no-cache-dir ./scanner \
+    && useradd --create-home --uid 10001 scanner \
+    && mkdir -p /data \
+    && chown scanner:scanner /data
+
+USER scanner
+
+VOLUME ["/data"]
+
+CMD ["jay-worker"]

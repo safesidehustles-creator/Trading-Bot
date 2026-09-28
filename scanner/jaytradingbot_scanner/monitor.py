@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 import sqlite3
 import time
 from dataclasses import asdict
@@ -158,7 +159,7 @@ class MonitorService:
         self.store = store
         self.sinks = sinks
         self.cooldown_seconds = cooldown_seconds
-        self.engine = OpportunityEngine(chain.quote_leg)
+        self.engine = OpportunityEngine(lru_cache(maxsize=4096)(chain.quote_leg))
 
     def run_once(self, now_epoch: int | None = None) -> list[QuoteResult]:
         epoch = int(time.time()) if now_epoch is None else now_epoch

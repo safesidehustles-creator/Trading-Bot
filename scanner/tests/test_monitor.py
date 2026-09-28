@@ -134,3 +134,20 @@ def test_duplicate_quotes_are_cached_across_discovery_cycles(tmp_path) -> None:
     results = service.run_once(now_epoch=1_000)
     assert [result.cycle for result in results] == ["first", "same-route-second-name"]
     store.close()
+
+
+def test_quote_cache_resets_between_monitor_passes(tmp_path) -> None:
+    store = OpportunityStore(str(tmp_path / "monitor.db"))
+    service = MonitorService(
+        FakeChain([1_100_000, 1_050_000, 1_200_000, 1_150_000]),
+        "provider",
+        ScanPolicy(gas_units=1, minimum_profit=1, safety_margin_bps=0, slippage_bps=0),
+        [_cycle()],
+        store,
+        [],
+    )
+    first = service.run_once(now_epoch=1_000)[0]
+    second = service.run_once(now_epoch=1_010)[0]
+    assert first.quoted_amount_out == 1_050_000
+    assert second.quoted_amount_out == 1_150_000
+    store.close()

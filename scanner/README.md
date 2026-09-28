@@ -79,3 +79,27 @@ The example route is expected to be rejected under normal conditions because it 
 ## Safety boundary
 
 There is intentionally no private-key setting, transaction signer, deployment command, or automatic executor. Rejected routes cannot produce normal call data; only the clearly marked `simulation_only` path can encode a known losing route for a safety test. Real broadcasting remains disabled during development.
+
+
+## Always-running worker container
+
+Build the scanner-only container from the repository root:
+
+```bash
+docker build -f Dockerfile.worker -t jaytradingbot-worker .
+```
+
+Run it with a read-only RPC and a persistent local data directory:
+
+```bash
+docker run --rm \
+  --name jaytradingbot-worker \
+  -e ETHEREUM_RPC_URL='YOUR_READ_ONLY_RPC_URL' \
+  -e FLASH_LOAN_AMOUNT_ETH='0.1' \
+  -e SCAN_INTERVAL_SECONDS='10' \
+  -e ALERT_COOLDOWN_SECONDS='300' \
+  -v jaytradingbot-data:/data \
+  jaytradingbot-worker
+```
+
+The image runs as a non-root user and contains the scanner package only. It has no private-key, wallet, signing, broadcasting, deployment, or automatic-execution setting. Hosting providers may charge for an always-running worker; review their current price before creating one.

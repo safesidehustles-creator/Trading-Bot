@@ -52,11 +52,13 @@ Run one read-only monitoring pass:
 jay-monitor --config config.example.json --once
 ```
 
-Or continuously scan the configured allowlisted cycles every 60 seconds:
+Or continuously scan 36 prioritized cross-market routes for a selected Aave loan size:
 
 ```bash
-jay-monitor --config config.example.json --interval 60 --cooldown 300
+jay-monitor --config config.example.json --discover --amount-eth 0.1 --interval 10 --cooldown 300
 ```
+
+This remains read-only. It caches duplicate quote calls, records results locally, and alerts only when estimated profit survives Aave premium, measured gas assumptions, slippage, safety margin, and minimum profit. A 10-second polling monitor is useful for observation and testing, but it is not guaranteed to beat professional low-latency arbitrage systems.
 
 Results are stored in `scanner/data/opportunities.db`. Profitable results print an alert to the console. To add optional Discord alerts, set `DISCORD_WEBHOOK_URL`; the webhook receives a message only and cannot control the bot. Repeated alerts for the same cycle are suppressed during the cooldown.
 

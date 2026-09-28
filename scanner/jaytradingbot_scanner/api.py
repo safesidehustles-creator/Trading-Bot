@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 from dataclasses import asdict
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -134,7 +135,7 @@ def scan(amount_eth: str | None = None) -> JSONResponse:
         selected_amount = amount_wei or 10**16
         cycles = build_web_cycles(selected_amount)
         chain = ReadOnlyChain(rpc_url)
-        engine = OpportunityEngine(chain.quote_leg)
+        engine = OpportunityEngine(lru_cache(maxsize=4096)(chain.quote_leg))
         premium_bps = chain.aave_premium_bps(provider)
         gas_price_wei = chain.gas_price_wei
         payload: list[dict[str, object]] = []

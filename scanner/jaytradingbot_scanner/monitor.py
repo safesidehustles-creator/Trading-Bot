@@ -159,7 +159,6 @@ class MonitorService:
         self.store = store
         self.sinks = sinks
         self.cooldown_seconds = cooldown_seconds
-        self.engine = OpportunityEngine(lru_cache(maxsize=4096)(chain.quote_leg))
 
     def run_once(self, now_epoch: int | None = None) -> list[QuoteResult]:
         epoch = int(time.time()) if now_epoch is None else now_epoch
@@ -167,10 +166,11 @@ class MonitorService:
         premium_bps = self.chain.aave_premium_bps(self.provider)
         gas_price = self.chain.gas_price_wei
         results: list[QuoteResult] = []
+        engine = OpportunityEngine(lru_cache(maxsize=4096)(self.chain.quote_leg))
 
         for cycle in self.cycles:
             try:
-                result = self.engine.evaluate(cycle, self.policy, premium_bps, gas_price)
+                result = engine.evaluate(cycle, self.policy, premium_bps, gas_price)
                 self.store.record_result(result, scanned_at)
                 results.append(result)
                 if result.executable and self.store.alert_due(

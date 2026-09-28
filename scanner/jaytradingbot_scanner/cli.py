@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from functools import lru_cache
 import json
 import os
 import time
@@ -34,7 +35,7 @@ def main() -> None:
     if args.discover:
         cycles = list(build_default_cycles())
     chain = ReadOnlyChain(rpc_url)
-    engine = OpportunityEngine(chain.quote_leg)
+    engine = OpportunityEngine(lru_cache(maxsize=4096)(chain.quote_leg))
     premium_bps = chain.aave_premium_bps(provider)
 
     if bool(args.contract) != bool(args.profit_recipient):

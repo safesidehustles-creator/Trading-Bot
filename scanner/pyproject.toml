@@ -22,6 +22,7 @@ dev = [
 jay-scan = "jaytradingbot_scanner.cli:main"
 jay-monitor = "jaytradingbot_scanner.monitor_cli:main"
 jay-dashboard = "jaytradingbot_scanner.dashboard_cli:main"
+jay-worker = "jaytradingbot_scanner.worker:main"
 
 [tool.vercel]
 entrypoint = "jaytradingbot_scanner.api:app"

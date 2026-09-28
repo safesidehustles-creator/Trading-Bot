@@ -1,0 +1,13 @@
+.git
+.github
+.gitignore
+.env
+.env.*
+out
+cache
+broadcast
+scanner/.venv
+scanner/data
+scanner/tests
+scanner/fixtures
+test
